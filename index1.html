@@ -1,0 +1,1813 @@
+<!DOCTYPE html>
+  <html lang="en"><head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Exam Seating Arrangement System</title>
+
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800 &amp;display=swap" rel="stylesheet"/>
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+
+  <!-- jsPDF + AutoTable -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          colors: {
+            primary: { 50:'#eff6ff',100:'#dbeafe',200:'#bfdbfe',300:'#93c5fd',400:'#60a5fa',500:'#3b82f6',600:'#2563eb',700:'#1d4ed8',800:'#1e40af',900:'#1e3a8a' },
+            sidebar: '#0f172a',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; }
+    .sidebar-link { transition: all 0.2s ease; }
+    .sidebar-link:hover, .sidebar-link.active { background: rgba(59,130,246,0.15); color: #60a5fa; border-left: 3px solid #3b82f6; }
+    .sidebar-link:not(.active) { border-left: 3px solid transparent; }
+    .page { display: none; }
+    .page.active { display: block; }
+    .card-hover { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+    .card-hover:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+    .badge { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+    .btn-primary { background: linear-gradient(135deg,#3b82f6,#1d4ed8); color: white; border: none; transition: all 0.2s; }
+    .btn-primary:hover { background: linear-gradient(135deg,#2563eb,#1e40af); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(59,130,246,0.4); }
+    .btn-danger { background: linear-gradient(135deg,#ef4444,#b91c1c); color: white; border: none; transition: all 0.2s; }
+    .btn-danger:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(239,68,68,0.4); }
+    .btn-success { background: linear-gradient(135deg,#10b981,#059669); color: white; border: none; transition: all 0.2s; }
+    .btn-success:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(16,185,129,0.4); }
+    .btn-warning { background: linear-gradient(135deg,#f59e0b,#d97706); color: white; border: none; transition: all 0.2s; }
+    .btn-warning:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(245,158,11,0.4); }
+    .input-field { border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 14px; outline: none; transition: border 0.2s, box-shadow 0.2s; width: 100%; }
+    .input-field:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+    .table-row:hover { background: #f8fafc; }
+    .stat-card { background: white; border-radius: 16px; padding: 24px; border: 1px solid #f1f5f9; }
+    /* Mobile sidebar */
+    #sidebar { transition: transform 0.3s ease; }
+    #overlay { display: none; }
+    @media(max-width:1023px) {
+      #sidebar { position: fixed; top: 0; left: 0; height: 100vh; z-index: 50; transform: translateX(-100%); }
+      #sidebar.open { transform: translateX(0); }
+      #overlay.show { display: block; }
+      #main-content { margin-left: 0 !important; }
+    }
+    .seat-cell { width: 38px; height: 38px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .seat-occupied { background: linear-gradient(135deg,#3b82f6,#1d4ed8); color: white; }
+    .seat-empty { background: #f1f5f9; color: #94a3b8; border: 1px dashed #cbd5e1; }
+    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; }
+    .modal.open { display: flex; }
+    .modal-box { background: white; border-radius: 16px; padding: 32px; width: 90%; max-width: 520px; max-height: 90vh; overflow-y: auto; }
+    .year-badge-1 { background: #dbeafe; color: #1e40af; }
+    .year-badge-2 { background: #d1fae5; color: #065f46; }
+    .year-badge-3 { background: #fef3c7; color: #92400e; }
+    .year-badge-4 { background: #fce7f3; color: #9d174d; }
+    .toast { position: fixed; bottom: 24px; right: 24px; z-index: 200; min-width: 280px; max-width: 380px; border-radius: 12px; padding: 16px 20px; font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); transform: translateY(100px); opacity: 0; transition: all 0.3s; }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .login-bg { background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #1d4ed8 100%); }
+    .glass { background: rgba(255,255,255,0.08); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.15); }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    .progress-bar { height: 6px; border-radius: 3px; background: #e2e8f0; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #3b82f6, #1d4ed8); transition: width 0.5s ease; }
+    .chip { display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; margin: 2px; cursor: pointer; transition: all 0.2s; }
+    .chip:hover { transform: scale(1.05); }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans">
+
+<!-- ============ LOGIN PAGE ============ -->
+<div id="loginPage" class="min-h-screen login-bg flex items-center justify-center p-4">
+  <div class="w-full max-w-md">
+    <!-- Logo / Brand -->
+    <div class="text-center mb-8">
+      <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary-600 shadow-2xl mb-4">
+        <i class="fas fa-graduation-cap text-white text-2xl"></i>
+      </div>
+      <h1 class="text-2xl font-bold text-white">Exam Seating Arrangement System</h1>
+    </div>
+
+    <!-- Login Card -->
+    <div class="glass rounded-2xl p-8 shadow-2xl">
+      <h2 class="text-xl font-semibold text-white mb-1">Admin Login</h2>
+      <p class="text-blue-300 text-sm mb-6">Sign in to access the admin dashboard</p>
+
+      <div id="loginError" class="hidden mb-4 bg-red-500/20 border border-red-500/40 text-red-200 rounded-lg px-4 py-3 text-sm flex items-center gap-2">
+        <i class="fas fa-circle-exclamation"></i>
+        <span>Invalid username or password.</span>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block text-blue-200 text-sm font-medium mb-1">Username</label>
+          <div class="relative">
+            <i class="fas fa-user absolute left-3 top-1/2 -translate-y-1/2 text-blue-400 text-sm"></i>
+            <input id="loginUser" type="text" placeholder="Enter username" class="w-full pl-10 pr-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-blue-300 focus:outline-none focus:border-blue-400 focus:bg-white/15 transition text-sm"/>
+          </div>
+        </div>
+        <div>
+          <label class="block text-blue-200 text-sm font-medium mb-1">Password</label>
+          <div class="relative">
+            <i class="fas fa-lock absolute left-3 top-1/2 -translate-y-1/2 text-blue-400 text-sm"></i>
+            <input id="loginPass" type="password" placeholder="Enter password" class="w-full pl-10 pr-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-blue-300 focus:outline-none focus:border-blue-400 focus:bg-white/15 transition text-sm"/>
+            <button type="button" onclick="toggleLoginPass()" class="absolute right-3 top-1/2 -translate-y-1/2 text-blue-400 hover:text-white transition">
+              <i id="loginPassIcon" class="fas fa-eye text-sm"></i>
+            </button>
+          </div>
+        </div>
+        <button onclick="doLogin()" class="w-full py-3 rounded-xl btn-primary font-semibold text-sm shadow-lg mt-2">
+          <i class="fas fa-right-to-bracket mr-2"></i> Sign In to Dashboard
+        </button>
+      </div>
+
+      <div class="mt-6 p-4 bg-white/5 border border-white/10 rounded-xl">
+        <p class="text-blue-300 text-xs font-medium mb-2"><i class="fas fa-key mr-1"></i> Default Credentials</p>
+        <div class="flex gap-4 text-xs text-blue-200">
+          <span>Username: <span class="font-bold text-white">username@gmail.com</span></span>
+          <span>Password: <span class="font-bold text-white">******</span></span>
+        </div>
+      </div>
+    </div>
+
+    <p class="text-center text-blue-400 text-xs mt-6">© 2026. Automated Exam Management.</p>
+  </div>
+</div>
+
+<!-- ============ MAIN APP ============ -->
+<div id="mainApp" class="hidden min-h-screen flex">
+
+  <!-- Overlay (mobile) -->
+  <div id="overlay" class="fixed inset-0 bg-black/50 z-40" onclick="closeSidebar()"></div>
+
+  <!-- ===== SIDEBAR ===== -->
+  <aside id="sidebar" class="w-64 bg-slate-900 flex flex-col min-h-screen lg:relative">
+    <!-- Brand -->
+    <div class="px-6 py-5 border-b border-slate-700/50">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-primary-600 flex items-center justify-center shadow">
+          <i class="fas fa-graduation-cap text-white text-sm"></i>
+        </div>
+        <div>
+          <h1 class="text-white font-bold text-sm leading-none">Admin Portal</h1>
+        </div>
+      </div>
+    </div>
+
+    <!-- Admin Info -->
+    <div class="px-6 py-4 border-b border-slate-700/50">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center text-white text-sm font-bold">A</div>
+        <div>
+          <p class="text-white text-xs font-semibold">Administrator</p>
+          <p class="text-slate-400 text-xs">admin@examseats.in</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Nav Links -->
+    <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+      <p class="text-slate-500 text-xs font-semibold uppercase px-3 mb-2 tracking-wider">Main Menu</p>
+
+      <button onclick="navigate('dashboard')" class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 text-sm font-medium active" data-page="dashboard">
+        <i class="fas fa-chart-pie w-4 text-center"></i> Dashboard
+      </button>
+      <button onclick="navigate('students')" class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 text-sm font-medium" data-page="students">
+        <i class="fas fa-users w-4 text-center"></i> Students
+        <span id="studentBadge" class="ml-auto bg-primary-600 text-white text-xs px-2 py-0.5 rounded-full">0</span>
+      </button>
+      <button onclick="navigate('rooms')" class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 text-sm font-medium" data-page="rooms">
+        <i class="fas fa-door-open w-4 text-center"></i> Rooms
+        <span id="roomBadge" class="ml-auto bg-emerald-600 text-white text-xs px-2 py-0.5 rounded-full">0</span>
+      </button>
+      <button onclick="navigate('departments&#39')" class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 text-sm font-medium" data-page="departments">
+        <i class="fas fa-building-columns w-4 text-center"></i> Departments
+        <span id="deptBadge" class="ml-auto bg-violet-600 text-white text-xs px-2 py-0.5 rounded-full">0</span>
+      </button>
+
+      <p class="text-slate-500 text-xs font-semibold uppercase px-3 mt-4 mb-2 tracking-wider">Exam Management</p>
+
+      <button onclick="navigate('seating')" class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 text-sm font-medium" data-page="seating">
+        <i class="fas fa-table-cells w-4 text-center"></i> Seat Allocation
+      </button>
+      <button onclick="navigate('reports')" class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 text-sm font-medium" data-page="reports">
+        <i class="fas fa-file-lines w-4 text-center"></i> Reports
+        <span id="reportBadge" class="ml-auto bg-amber-600 text-white text-xs px-2 py-0.5 rounded-full">0</span>
+      </button>
+
+      <p class="text-slate-500 text-xs font-semibold uppercase px-3 mt-4 mb-2 tracking-wider">Settings</p>
+      <button onclick="navigate('settings')" class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 text-sm font-medium" data-page="settings">
+        <i class="fas fa-gear w-4 text-center"></i> Settings
+      </button>
+    </nav>
+
+    <!-- Logout -->
+    <div class="px-3 py-4 border-t border-slate-700/50">
+      <button onclick="doLogout()" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-400 hover:bg-red-500/10 text-sm font-medium transition">
+        <i class="fas fa-right-from-bracket w-4 text-center"></i> Logout
+      </button>
+    </div>
+  </aside>
+
+  <!-- ===== MAIN CONTENT ===== -->
+  <main id="main-content" class="flex-1 flex flex-col min-h-screen overflow-hidden">
+
+    <!-- Top Bar -->
+    <header class="bg-white border-b border-gray-200 px-4 lg:px-6 py-3.5 flex items-center gap-4 sticky top-0 z-30 shadow-sm">
+      <button onclick="toggleSidebar()" class="lg:hidden text-gray-500 hover:text-gray-700 transition">
+        <i class="fas fa-bars text-lg"></i>
+      </button>
+      <div class="flex-1">
+        <h2 id="pageTitle" class="text-gray-800 font-semibold text-base">Dashboard</h2>
+        <p id="pageSubtitle" class="text-gray-400 text-xs hidden sm:block">Overview of your exam seating system</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="relative hidden md:block">
+          <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+          <input id="globalSearch" type="text" placeholder="Search students..." oninput="globalSearchFn(this.value)" class="pl-8 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-primary-400 w-48 transition"/>
+        </div>
+        <div class="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center text-white text-sm font-bold cursor-pointer" title="Admin">A</div>
+      </div>
+    </header>
+
+    <!-- Content Area -->
+    <div class="flex-1 overflow-y-auto p-4 lg:p-6">
+
+      <!-- ===== DASHBOARD PAGE ===== -->
+      <div id="page-dashboard" class="page active">
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div class="stat-card card-hover">
+            <div class="flex items-center justify-between mb-3">
+              <div class="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center">
+                <i class="fas fa-users text-primary-600"></i>
+              </div>
+              <span class="badge bg-primary-100 text-primary-700">Total</span>
+            </div>
+            <h3 id="dashStudents" class="text-2xl font-bold text-gray-800">0</h3>
+            <p class="text-gray-500 text-xs mt-1">Students Registered</p>
+            <div class="progress-bar mt-3"><div id="dashStudentsBar" class="progress-fill" style="width:0%"></div></div>
+          </div>
+          <div class="stat-card card-hover">
+            <div class="flex items-center justify-between mb-3">
+              <div class="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+                <i class="fas fa-door-open text-emerald-600"></i>
+              </div>
+              <span class="badge bg-emerald-100 text-emerald-700">Active</span>
+            </div>
+            <h3 id="dashRooms" class="text-2xl font-bold text-gray-800">0</h3>
+            <p class="text-gray-500 text-xs mt-1">Exam Halls</p>
+            <div class="progress-bar mt-3"><div id="dashRoomsBar" class="progress-fill" style="width:0%;background:linear-gradient(90deg,#10b981,#059669)"></div></div>
+          </div>
+          <div class="stat-card card-hover">
+            <div class="flex items-center justify-between mb-3">
+              <div class="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center">
+                <i class="fas fa-building-columns text-violet-600"></i>
+              </div>
+              <span class="badge bg-violet-100 text-violet-700">Depts</span>
+            </div>
+            <h3 id="dashDepts" class="text-2xl font-bold text-gray-800">0</h3>
+            <p class="text-gray-500 text-xs mt-1">Departments</p>
+            <div class="progress-bar mt-3"><div id="dashDeptsBar" class="progress-fill" style="width:0%;background:linear-gradient(90deg,#8b5cf6,#6d28d9)"></div></div>
+          </div>
+          <div class="stat-card card-hover">
+            <div class="flex items-center justify-between mb-3">
+              <div class="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+                <i class="fas fa-file-lines text-amber-600"></i>
+              </div>
+              <span class="badge bg-amber-100 text-amber-700">Generated</span>
+            </div>
+            <h3 id="dashReports" class="text-2xl font-bold text-gray-800">0</h3>
+            <p class="text-gray-500 text-xs mt-1">Seating Reports</p>
+            <div class="progress-bar mt-3"><div id="dashReportsBar" class="progress-fill" style="width:0%;background:linear-gradient(90deg,#f59e0b,#d97706)"></div></div>
+          </div>
+        </div>
+
+        <!-- Quick Actions + Recent -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+          <div class="lg:col-span-1 bg-white rounded-2xl border border-gray-100 p-5">
+            <h3 class="font-semibold text-gray-800 mb-4 text-sm flex items-center gap-2"><i class="fas fa-bolt text-amber-500"></i> Quick Actions</h3>
+            <div class="space-y-2">
+              <button onclick="navigate('students')" class="w-full flex items-center gap-3 p-3 rounded-xl bg-primary-50 hover:bg-primary-100 text-primary-700 text-sm font-medium transition">
+                <div class="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center"><i class="fas fa-upload text-white text-xs"></i></div>
+                Import Students (CSV)
+              </button>
+              <button onclick="navigate('rooms')" class="w-full flex items-center gap-3 p-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-sm font-medium transition">
+                <div class="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center"><i class="fas fa-plus text-white text-xs"></i></div>
+                Add New Room
+              </button>
+              <button onclick="navigate('departments')" class="w-full flex items-center gap-3 p-3 rounded-xl bg-violet-50 hover:bg-violet-100 text-violet-700 text-sm font-medium transition">
+                <div class="w-8 h-8 rounded-lg bg-violet-600 flex items-center justify-center"><i class="fas fa-plus text-white text-xs"></i></div>
+                Add Department
+              </button>
+              <button onclick="navigate('seating')" class="w-full flex items-center gap-3 p-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-700 text-sm font-medium transition">
+                <div class="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center"><i class="fas fa-wand-magic-sparkles text-white text-xs"></i></div>
+                Generate Seating
+              </button>
+            </div>
+          </div>
+
+          <div class="lg:col-span-2 bg-white rounded-2xl border border-gray-100 p-5">
+            <h3 class="font-semibold text-gray-800 mb-4 text-sm flex items-center gap-2"><i class="fas fa-chart-bar text-primary-500"></i> Year-wise Student Distribution</h3>
+            <div id="yearChart" class="space-y-3">
+              <div class="text-center text-gray-400 text-sm py-8"><i class="fas fa-database text-3xl mb-3 opacity-30 block"></i> No student data available yet.<br/>Import students to see distribution.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Reports -->
+        <div class="bg-white rounded-2xl border border-gray-100 p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold text-gray-800 text-sm flex items-center gap-2"><i class="fas fa-clock text-gray-400"></i> Recent Seating Reports</h3>
+            <button onclick="navigate('reports')" class="text-primary-600 text-xs hover:underline">View All →</button>
+          </div>
+          <div id="recentReports">
+            <div class="text-center text-gray-400 text-sm py-6"><i class="fas fa-folder-open text-3xl mb-2 opacity-30 block"></i> No reports generated yet.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== STUDENTS PAGE ===== -->
+      <div id="page-students" class="page">
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+
+          <!-- Import Card -->
+          <div class="xl:col-span-1 space-y-4">
+            <div class="bg-white rounded-2xl border border-gray-100 p-5">
+              <h3 class="font-semibold text-gray-800 mb-1 flex items-center gap-2"><i class="fas fa-file-csv text-green-500"></i> Import via CSV</h3>
+              <p class="text-gray-400 text-xs mb-4">Upload a CSV with student details</p>
+
+              <!-- CSV Format -->
+              <div class="bg-gray-50 rounded-xl p-3 mb-4">
+                <p class="text-xs font-semibold text-gray-600 mb-2"><i class="fas fa-info-circle text-primary-500 mr-1"></i> Required CSV Format:</p>
+                <div class="overflow-x-auto">
+                  <code class="text-xs text-gray-600 block whitespace-nowrap">Reg No,Name, SIN No, Email, Year, Department</code>
+                  <code class="text-xs text-green-600 block whitespace-nowrap mt-1">2303732724322026,Santhi Subramanian, E23AI072, e23ai072@shanmugha.edu.in 3, AI&DS</code>
+                </div>
+              </div>
+
+              <label class="block">
+                <div class="border-2 border-dashed border-primary-300 rounded-xl p-6 text-center cursor-pointer hover:bg-primary-50 transition" id="dropZone">
+                  <i class="fas fa-cloud-arrow-up text-primary-400 text-2xl mb-2"></i>
+                  <p class="text-primary-600 font-medium text-sm">Click or drag CSV here</p>
+                  <p class="text-gray-400 text-xs mt-1">.csv files only</p>
+                </div>
+                <input type="file" id="csvFile" accept=".csv" class="hidden" onchange="handleCSV(event)"/>
+              </label>
+              <div id="csvPreview" class="mt-3 hidden">
+                <div class="flex items-center gap-2 p-3 bg-green-50 rounded-lg border border-green-200">
+                  <i class="fas fa-check-circle text-green-500"></i>
+                  <span id="csvPreviewText" class="text-sm text-green-700 font-medium"></span>
+                </div>
+              </div>
+              <button onclick="importCSV()" class="btn-primary w-full py-3 rounded-xl text-sm font-medium mt-3 cursor-pointer">
+                <i class="fas fa-upload mr-2"></i> Import Students
+              </button>
+            </div>
+
+            <!-- Add Single Student -->
+            <div class="bg-white rounded-2xl border border-gray-100 p-5">
+              <h3 class="font-semibold text-gray-800 mb-1 flex items-center gap-2"><i class="fas fa-user-plus text-primary-500"></i> Add Single Student</h3>
+              <p class="text-gray-400 text-xs mb-4">Manually add a student record</p>
+              <div class="space-y-3">
+                <input id="sName" type="text" placeholder="Full Name" class="input-field"/>
+                <input id="sSIN" type="text" placeholder="SIN Number" class="input-field"/>
+                <input id="sEmail" type="email" placeholder="Email Address" class="input-field"/>
+                <div class="grid grid-cols-2 gap-2">
+                  <select id="sYear" class="input-field">
+                    <option value="">Year</option>
+                    <option value="1">1st Year</option>
+                    <option value="2">2nd Year</option>
+                    <option value="3">3rd Year</option>
+                    <option value="4">4th Year</option>
+                  </select>
+                  <select id="sDept" class="input-field">
+                    <option value="">Department</option>
+                  </select>
+                </div>
+                <button onclick="addStudent()" class="btn-primary w-full py-2.5 rounded-xl text-sm font-medium">
+                  <i class="fas fa-plus mr-1"></i> Add Student
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Student List -->
+          <div class="xl:col-span-2 bg-white rounded-2xl border border-gray-100 p-5">
+            <div class="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+              <h3 class="font-semibold text-gray-800 flex items-center gap-2"><i class="fas fa-list text-gray-400"></i> Student Records <span id="studentCount" class="text-xs font-normal text-gray-400">(0)</span></h3>
+              <div class="sm:ml-auto flex items-center gap-2">
+                <div class="relative">
+                  <i class="fas fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                  <input type="text" id="studentSearch" placeholder="Search..." oninput="renderStudents()" class="pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-primary-400 w-36 transition"/>
+                </div>
+                <select id="studentYearFilter" onchange="renderStudents()" class="text-xs border border-gray-200 rounded-lg px-2 py-2 focus:outline-none focus:border-primary-400">
+                  <option value="">All Years</option>
+                  <option value="1">Year 1</option>
+                  <option value="2">Year 2</option>
+                  <option value="3">Year 3</option>
+                  <option value="4">Year 4</option>
+                </select>
+                <button onclick="clearAllStudents()" class="btn-danger px-3 py-2 rounded-lg text-xs font-medium">
+                  <i class="fas fa-trash mr-1"></i> Clear
+                </button>
+              </div>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="border-b border-gray-100">
+                    <th class="text-left text-xs font-semibold text-gray-500 pb-3 pr-4">Reg No</th>
+                    <th class="text-left text-xs font-semibold text-gray-500 pb-3 pr-4">Name</th>
+                    <th class="text-left text-xs font-semibold text-gray-500 pb-3 pr-4">SIN No</th>
+                    <th class="text-left text-xs font-semibold text-gray-500 pb-3 pr-4 hidden md:table-cell">Email</th>
+                    <th class="text-left text-xs font-semibold text-gray-500 pb-3 pr-4">Year</th>
+                    <th class="text-left text-xs font-semibold text-gray-500 pb-3 pr-4">Dept</th>
+                    <th class="text-left text-xs font-semibold text-gray-500 pb-3">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="studentsTable">
+                  <tr><td colspan="7" class="py-12 text-center text-gray-400 text-sm"><i class="fas fa-users text-4xl mb-3 opacity-20 block"></i>No students added yet.<br/><span class="text-xs">Import a CSV or add manually.</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <!-- Pagination -->
+            <div id="studentPagination" class="flex items-center justify-between mt-4 hidden">
+              <p class="text-xs text-gray-400" id="paginationInfo"></p>
+              <div class="flex gap-1" id="paginationBtns"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== ROOMS PAGE ===== -->
+      <div id="page-rooms" class="page">
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+          <div class="xl:col-span-1 bg-white rounded-2xl border border-gray-100 p-5">
+            <h3 class="font-semibold text-gray-800 mb-1 flex items-center gap-2"><i class="fas fa-plus-circle text-emerald-500"></i> Add New Room</h3>
+            <p class="text-gray-400 text-xs mb-4">Define exam halls for seat allocation</p>
+            <div class="space-y-3">
+              <div>
+                <label class="text-xs font-medium text-gray-600 block mb-1">Room Code / Name</label>
+                <input id="roomCode" type="text" placeholder="e.g. LH001, A-101" class="input-field"/>
+                <p class="text-xs text-gray-400 mt-1">Format: Block + Floor + Room No</p>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-gray-600 block mb-1">Location Description</label>
+                <input id="roomLocation" type="text" placeholder="e.g. Ground Floor, 1st Room" class="input-field"/>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-gray-600 block mb-1">Seating Capacity</label>
+                <input id="roomCapacity" type="number" placeholder="Number of seats" min="1" class="input-field"/>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-gray-600 block mb-1">Block / Building</label>
+                <input id="roomBlock" type="text" placeholder="e.g. A Block, Main Building" class="input-field"/>
+              </div>
+              <button onclick="addRoom()" class="btn-success w-full py-2.5 rounded-xl text-sm font-medium">
+                <i class="fas fa-plus mr-1"></i> Add Room
+              </button>
+            </div>
+
+            <!-- Summary -->
+            <div class="mt-5 p-4 bg-gray-50 rounded-xl">
+              <p class="text-xs font-semibold text-gray-600 mb-2">Capacity Summary</p>
+              <div id="capacitySummary" class="text-gray-400 text-xs">No rooms added yet.</div>
+            </div>
+          </div>
+
+          <div class="xl:col-span-2 bg-white rounded-2xl border border-gray-100 p-5">
+            <div class="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+              <h3 class="font-semibold text-gray-800 flex items-center gap-2"><i class="fas fa-building text-gray-400"></i> Exam Halls <span id="roomCount" class="text-xs font-normal text-gray-400">(0)</span></h3>
+              <div class="sm:ml-auto">
+                <input type="text" id="roomSearch" placeholder="Search rooms..." oninput="renderRooms()" class="pl-3 pr-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-primary-400 w-40 transition"/>
+              </div>
+            </div>
+            <div id="roomsGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div class="col-span-full text-center text-gray-400 py-12 text-sm"><i class="fas fa-door-open text-4xl mb-3 opacity-20 block"></i>No rooms added yet.<br/><span class="text-xs">Add rooms using the form.</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== DEPARTMENTS PAGE ===== -->
+      <div id="page-departments" class="page">
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+          <div class="xl:col-span-1 bg-white rounded-2xl border border-gray-100 p-5">
+            <h3 class="font-semibold text-gray-800 mb-1 flex items-center gap-2"><i class="fas fa-plus-circle text-violet-500"></i> Add Department</h3>
+            <p class="text-gray-400 text-xs mb-4">Register your college departments</p>
+            <div class="space-y-3">
+              <div>
+                <label class="text-xs font-medium text-gray-600 block mb-1">Department Short Name</label>
+                <input id="deptCode" type="text" placeholder="e.g. CSE, AI&amp;DS, ECE" class="input-field"/>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-gray-600 block mb-1">Full Department Name</label>
+                <input id="deptName" type="text" placeholder="Computer Science and Engineering" class="input-field"/>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-gray-600 block mb-1">Number of Students</label>
+                <input id="deptStrength" type="number" placeholder="Total department strength" class="input-field"/>
+              </div>
+              <button onclick="addDept()" class="w-full py-2.5 rounded-xl text-sm font-medium text-white" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9)">
+                <i class="fas fa-plus mr-1"></i> Add Department
+              </button>
+            </div>
+
+            <!-- Quick Add Common Depts -->
+            <div class="mt-4">
+              <p class="text-xs font-medium text-gray-500 mb-2">Quick Add Common Departments:</p>
+              <div class="flex flex-wrap gap-1">
+                <button onclick="quickAddDept('CSE','Computer Science &amp; Engg')" class="chip bg-blue-100 text-blue-700 hover:bg-blue-200">CSE</button>
+                <button onclick="quickAddDept('IT','Information Technology')" class="chip bg-green-100 text-green-700 hover:bg-green-200">IT</button>
+                <button onclick="quickAddDept('ECE','Electronics &amp; Communication')" class="chip bg-yellow-100 text-yellow-700 hover:bg-yellow-200">ECE</button>
+                <button onclick="quickAddDept('MECH','Mechanical Engineering')" class="chip bg-red-100 text-red-700 hover:bg-red-200">MECH</button>
+                <button onclick="quickAddDept('AI &amp DS','Artificial Intelligence &amp; Data Science')" class="chip bg-purple-100 text-purple-700 hover:bg-purple-200">AI &amp; DS</button>
+                <button onclick="quickAddDept('AGRI','Agricultural Engineering')" class="chip bg-indigo-100 text-indigo-700 hover:bg-indigo-200">AGRI</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="xl:col-span-2 bg-white rounded-2xl border border-gray-100 p-5">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-semibold text-gray-800 flex items-center gap-2"><i class="fas fa-sitemap text-gray-400"></i> Departments <span id="deptCount" class="text-xs font-normal text-gray-400">(0)</span></h3>
+            </div>
+            <div id="deptsGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div class="col-span-full text-center text-gray-400 py-12 text-sm"><i class="fas fa-building-columns text-4xl mb-3 opacity-20 block"></i>No departments added yet.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== SEATING PAGE ===== -->
+      <div id="page-seating" class="page">
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+          <!-- Config Panel -->
+          <div class="xl:col-span-1 space-y-4">
+            <div class="bg-white rounded-2xl border border-gray-100 p-5">
+              <h3 class="font-semibold text-gray-800 mb-1 flex items-center gap-2"><i class="fas fa-wand-magic-sparkles text-amber-500"></i> Generate Seating</h3>
+              <p class="text-gray-400 text-xs mb-4">Configure and auto-generate exam seating</p>
+              <div class="space-y-3">
+                <div>
+                  <label class="text-xs font-medium text-gray-600 block mb-1">Exam Name / Subject</label>
+                  <input id="examName" type="text" placeholder="e.g. Mathematics - Unit Test 1" class="input-field"/>
+                </div>
+                <div>
+                  <label class="text-xs font-medium text-gray-600 block mb-1">Exam Date</label>
+                  <input id="examDate" type="date" class="input-field"/>
+                </div>
+                <div>
+                  <label class="text-xs font-medium text-gray-600 block mb-1">Exam Time</label>
+                  <input id="examTime" type="time" class="input-field"/>
+                </div>
+                <div>
+                  <label class="text-xs font-medium text-gray-600 block mb-1">Select Rooms</label>
+                  <div id="roomCheckboxes" class="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2">
+                    <p class="text-xs text-gray-400 p-1">No rooms available. Add rooms first.</p>
+                  </div>
+                </div>
+                <div>
+                  <label class="text-xs font-medium text-gray-600 block mb-1">Filter by Year (optional)</label>
+                  <div class="flex flex-wrap gap-2">
+                    <label class="flex items-center gap-1 text-xs"><input type="checkbox" value="1" class="yearCheck" checked=""/> 1st Year</label>
+                    <label class="flex items-center gap-1 text-xs"><input type="checkbox" value="2" class="yearCheck" checked=""/> 2nd Year</label>
+                    <label class="flex items-center gap-1 text-xs"><input type="checkbox" value="3" class="yearCheck" checked=""/> 3rd Year</label>
+                    <label class="flex items-center gap-1 text-xs"><input type="checkbox" value="4" class="yearCheck" checked=""/> 4th Year</label>
+                  </div>
+                </div>
+                <div>
+                  <label class="text-xs font-medium text-gray-600 block mb-1">Mix Strategy</label>
+                  <select id="mixStrategy" class="input-field">
+                    <option value="all_mixed">All Years Mixed</option>
+                    <option value="dept_mixed">Departments Mixed</option>
+                    <option value="full_random">Fully Random</option>
+                  </select>
+                </div>
+              </div>
+              <button onclick="generateSeating()" class="btn-warning w-full py-3 rounded-xl text-sm font-semibold mt-4">
+                <i class="fas fa-magic mr-2"></i> Generate Seating
+              </button>
+            </div>
+
+            <!-- Availability -->
+            <div class="bg-white rounded-2xl border border-gray-100 p-5">
+              <h3 class="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2"><i class="fas fa-circle-info text-primary-500"></i> System Status</h3>
+              <div class="space-y-2" id="systemStatus">
+                <div class="flex items-center justify-between text-xs">
+                  <span class="text-gray-500">Students</span>
+                  <span id="statusStudents" class="text-red-500 font-medium">0 records</span>
+                </div>
+                <div class="flex items-center justify-between text-xs">
+                  <span class="text-gray-500">Rooms</span>
+                  <span id="statusRooms" class="text-red-500 font-medium">0 rooms</span>
+                </div>
+                <div class="flex items-center justify-between text-xs">
+                  <span class="text-gray-500">Total Capacity</span>
+                  <span id="statusCapacity" class="text-gray-700 font-medium">0 seats</span>
+                </div>
+                <div class="flex items-center justify-between text-xs">
+                  <span class="text-gray-500">Prev Arrangements</span>
+                  <span id="statusHistory" class="text-gray-700 font-medium">0</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Preview -->
+          <div class="xl:col-span-2 bg-white rounded-2xl border border-gray-100 p-5">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-semibold text-gray-800 flex items-center gap-2"><i class="fas fa-eye text-gray-400"></i> Arrangement Preview</h3>
+              <div id="previewActions" class="hidden flex items-center gap-2">
+                <button onclick="downloadPDF()" class="btn-primary px-4 py-2 rounded-lg text-xs font-medium">
+                  <i class="fas fa-file-pdf mr-1"></i> Download PDF
+                </button>
+                <button onclick="saveReport()" class="btn-success px-4 py-2 rounded-lg text-xs font-medium">
+                  <i class="fas fa-save mr-1"></i> Save Report
+                </button>
+              </div>
+            </div>
+            <div id="seatingPreview">
+              <div class="text-center py-16 text-gray-400">
+                <i class="fas fa-table-cells text-5xl mb-4 opacity-20"></i>
+                <p class="font-medium">No seating arrangement generated yet</p>
+                <p class="text-xs mt-1">Configure options and click "Generate Seating"</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== REPORTS PAGE ===== -->
+          <div id="page-reports" class="page">
+        <div class="bg-white rounded-2xl border border-gray-100 p-5 mb-4">
+          <div class="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+            <h3 class="font-semibold text-gray-800 flex items-center gap-2"><i class="fas fa-archive text-gray-400"></i> All Seating Reports <span id="reportsCount" class="text-xs font-normal text-gray-400">(0)</span></h3>
+            <div class="sm:ml-auto flex items-center gap-2">
+              <input type="text" id="reportSearch" placeholder="Search reports..." oninput="renderReports()" class="pl-3 pr-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-primary-400 w-44 transition"/>
+              <button onclick="clearAllReports()" class="btn-danger px-3 py-2 rounded-lg text-xs font-medium">
+                <i class="fas fa-trash mr-1"></i> Clear All
+              </button>
+            </div>
+          </div>
+          <div id="reportsTable">
+            <div class="text-center py-12 text-gray-400 text-sm"><i class="fas fa-folder-open text-4xl mb-3 opacity-20 block"></i>No reports saved yet.<br/><span class="text-xs">Generate and save seating arrangements.</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== SETTINGS PAGE ===== -->
+      <div id="page-settings" class="page">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div class="bg-white rounded-2xl border border-gray-100 p-5">
+            <h3 class="font-semibold text-gray-800 mb-4 flex items-center gap-2"><i class="fas fa-user-shield text-primary-500"></i> Admin Credentials</h3>
+            <div class="space-y-3">
+              <div>
+                <label class="text-xs font-medium text-gray-600 block mb-1">Admin Username</label>
+                <input id="newUsername" type="text" placeholder="Enter new username" class="input-field"/>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-gray-600 block mb-1">Current Password</label>
+                <input id="currentPass" type="password" placeholder="Current password" class="input-field"/>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-gray-600 block mb-1">New Password</label>
+                <input id="newPass" type="password" placeholder="New password" class="input-field"/>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-gray-600 block mb-1">Confirm New Password</label>
+                <input id="confirmPass" type="password" placeholder="Confirm new password" class="input-field"/>
+              </div>
+              <button onclick="updateCredentials()" class="btn-primary w-full py-2.5 rounded-xl text-sm font-medium">
+                <i class="fas fa-save mr-1"></i> Update Credentials
+              </button>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-gray-100 p-5">
+            <h3 class="font-semibold text-gray-800 mb-4 flex items-center gap-2"><i class="fas fa-building text-violet-500"></i> College Information</h3>
+            <div class="space-y-3">
+              <div>
+                <label class="text-xs font-medium text-gray-600 block mb-1">College Name</label>
+                <input id="collegeName" type="text" placeholder="Your College Name" class="input-field"/>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-gray-600 block mb-1">College Code</label>
+                <input id="collegeCode" type="text" placeholder="e.g. ABC001" class="input-field"/>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-gray-600 block mb-1">Address</label>
+                <textarea id="collegeAddress" placeholder="College address..." rows="3" class="input-field resize-none"></textarea>
+              </div>
+              <button onclick="saveCollegeInfo()" class="w-full py-2.5 rounded-xl text-sm font-medium text-white" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9)">
+                <i class="fas fa-save mr-1"></i> Save Information
+              </button>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-gray-100 p-5">
+            <h3 class="font-semibold text-gray-800 mb-4 flex items-center gap-2"><i class="fas fa-database text-red-500"></i> Data Management</h3>
+            <div class="space-y-3">
+              <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                <p class="text-xs font-medium text-amber-700"><i class="fas fa-triangle-exclamation mr-1"></i> Warning: These actions are irreversible.</p>
+              </div>
+              <button onclick="if(confirm('Clear all student data?')) { clearAllStudents(); }" class="btn-danger w-full py-2.5 rounded-xl text-sm font-medium">
+                <i class="fas fa-users-slash mr-1"></i> Clear All Students
+              </button>
+              <button onclick="if(confirm('Clear all rooms?')) { clearAllRooms(); }" class="btn-danger w-full py-2.5 rounded-xl text-sm font-medium">
+                <i class="fas fa-door-closed mr-1"></i> Clear All Rooms
+              </button>
+              <button onclick="if(confirm('Clear all reports &amp; seating history?')) { clearAllReports(); }" class="btn-danger w-full py-2.5 rounded-xl text-sm font-medium">
+                <i class="fas fa-file-slash mr-1"></i> Clear Seating History
+              </button>
+              <button onclick="if(confirm('Reset everything? This will log you out.')) { resetAll(); }" class="w-full py-2.5 rounded-xl text-sm font-medium border-2 border-red-500 text-red-600 hover:bg-red-50 transition">
+                <i class="fas fa-rotate-left mr-1"></i> Full System Reset
+              </button>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-gray-100 p-5">
+            <h3 class="font-semibold text-gray-800 mb-4 flex items-center gap-2"><i class="fas fa-circle-info text-primary-500"></i> About System</h3>
+            <div class="space-y-2 text-sm">
+              <div class="flex justify-between py-2 border-b border-gray-50">
+                <span class="text-gray-500">System Name</span>
+                <span class="font-medium">ExamSeat Pro</span>
+              </div>
+              <div class="flex justify-between py-2 border-b border-gray-50">
+                <span class="text-gray-500">Version</span>
+                <span class="font-medium">1.0.0</span>
+              </div>
+              <div class="flex justify-between py-2 border-b border-gray-50">
+                <span class="text-gray-500">Storage</span>
+                <span class="font-medium">LocalStorage</span>
+              </div>
+              <div class="flex justify-between py-2 border-b border-gray-50">
+                <span class="text-gray-500">Built with</span>
+                <span class="font-medium">HTML + Tailwind + JS</span>
+              </div>
+              <div class="flex justify-between py-2">
+                <span class="text-gray-500">PDF Engine</span>
+                <span class="font-medium">jsPDF + AutoTable</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /Content Area -->
+  </main>
+</div><!-- /mainApp -->
+
+<!-- ============ REPORT DETAIL MODAL ============ -->
+<div id="reportModal" class="modal">
+  <div class="modal-box w-full" style="max-width:900px;">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-bold text-gray-800 text-lg flex items-center gap-2"><i class="fas fa-file-lines text-primary-500"></i> <span id="modalReportTitle">Report</span></h3>
+      <button onclick="closeModal('reportModal')" class="text-gray-400 hover:text-gray-600 transition text-lg"><i class="fas fa-times"></i></button>
+    </div>
+    <div id="modalReportContent" class="overflow-x-auto"></div>
+    <div class="flex gap-2 mt-4">
+      <button onclick="downloadPDFFromModal()" class="btn-primary px-5 py-2.5 rounded-xl text-sm font-medium">
+        <i class="fas fa-file-pdf mr-2"></i> Download PDF
+      </button>
+      <button onclick="closeModal('reportModal')" class="px-5 py-2.5 rounded-xl text-sm font-medium border border-gray-200 hover:bg-gray-50 transition">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ TOAST ============ -->
+<div id="toast" class="toast"></div>
+
+<!-- ============ JAVASCRIPT ============ -->
+<script>
+'use strict';
+
+// ======== CONSTANTS & STATE ========
+const ADMIN_CREDS_KEY = 'eseat_admin';
+const STUDENTS_KEY = 'eseat_students';
+const ROOMS_KEY = 'eseat_rooms';
+const DEPTS_KEY = 'eseat_depts';
+const REPORTS_KEY = 'eseat_reports';
+const HISTORY_KEY = 'eseat_history';
+const COLLEGE_KEY = 'eseat_college';
+
+let csvBuffer = [];
+let currentPage = 1;
+const PAGE_SIZE = 20;
+let currentReportData = null;
+
+// ======== STORAGE HELPERS ========
+const getAdminCreds = () => JSON.parse(localStorage.getItem(ADMIN_CREDS_KEY) || '{"user":"admin","pass":"admin123"}');
+const saveAdminCreds = (c) => localStorage.setItem(ADMIN_CREDS_KEY, JSON.stringify(c));
+const getStudents = () => JSON.parse(localStorage.getItem(STUDENTS_KEY) || '[]');
+const saveStudents = (d) => localStorage.setItem(STUDENTS_KEY, JSON.stringify(d));
+const getRooms = () => JSON.parse(localStorage.getItem(ROOMS_KEY) || '[]');
+const saveRooms = (d) => localStorage.setItem(ROOMS_KEY, JSON.stringify(d));
+const getDepts = () => JSON.parse(localStorage.getItem(DEPTS_KEY) || '[]');
+const saveDepts = (d) => localStorage.setItem(DEPTS_KEY, JSON.stringify(d));
+const getReports = () => JSON.parse(localStorage.getItem(REPORTS_KEY) || '[]');
+const saveReports = (d) => localStorage.setItem(REPORTS_KEY, JSON.stringify(d));
+const getHistory = () => JSON.parse(localStorage.getItem(HISTORY_KEY) || '{}');
+const saveHistory = (d) => localStorage.setItem(HISTORY_KEY, JSON.stringify(d));
+const getCollege = () => JSON.parse(localStorage.getItem(COLLEGE_KEY) || '{"name":"","code":"","address":""}');
+const saveCollege = (d) => localStorage.setItem(COLLEGE_KEY, JSON.stringify(d));
+
+// ======== TOAST ========
+let toastTimer;
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  const colors = { success: '#10b981', error: '#ef4444', warning: '#f59e0b', info: '#3b82f6' };
+  const icons = { success: 'fa-check-circle', error: 'fa-circle-xmark', warning: 'fa-triangle-exclamation', info: 'fa-circle-info' };
+  t.style.background = colors[type];
+  t.innerHTML = `<i class="fas ${icons[type]} text-white text-lg"></i><span class="text-white text-sm">${msg}</span>`;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ======== AUTH ========
+function doLogin() {
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value;
+  const creds = getAdminCreds();
+  if (u === creds.user && p === creds.pass) {
+    document.getElementById('loginPage').classList.add('hidden');
+    document.getElementById('mainApp').classList.remove('hidden');
+    document.getElementById('loginError').classList.add('hidden');
+    refreshAll();
+  } else {
+    document.getElementById('loginError').classList.remove('hidden');
+    document.getElementById('loginPass').value = '';
+  }
+}
+function doLogout() {
+  if (!confirm('Are you sure you want to logout?')) return;
+  document.getElementById('mainApp').classList.add('hidden');
+  document.getElementById('loginPage').classList.remove('hidden');
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+}
+function toggleLoginPass() {
+  const inp = document.getElementById('loginPass');
+  const ico = document.getElementById('loginPassIcon');
+  if (inp.type === 'password') { inp.type = 'text'; ico.className = 'fas fa-eye-slash text-sm'; }
+  else { inp.type = 'password'; ico.className = 'fas fa-eye text-sm'; }
+}
+document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+// ======== NAVIGATION ========
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.sidebar-link').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
+  const titles = { dashboard:'Dashboard', students:'Student Management', rooms:'Room Management', departments:'Department Management', seating:'Automatic Seat Allocation', reports:'Seating Reports', settings:'Settings' };
+  const subs = { dashboard:'Overview of your exam seating system', students:'Import, manage and view student records', rooms:'Manage exam halls and seating capacity', departments:'Manage college departments', seating:'Generate randomized exam seating arrangements', reports:'View and download seating reports', settings:'System configuration and preferences' };
+  document.getElementById('pageTitle').textContent = titles[page] || page;
+  document.getElementById('pageSubtitle').textContent = subs[page] || '';
+  closeSidebar();
+  if (page === 'dashboard') updateDashboard();
+  if (page === 'students') { renderStudents(); populateDeptDropdown(); }
+  if (page === 'rooms') renderRooms();
+  if (page === 'departments') renderDepts();
+  if (page === 'seating') { updateSeatingStatus(); renderRoomCheckboxes(); }
+  if (page === 'reports') renderReports();
+  if (page === 'settings') loadSettings();
+}
+
+// ======== SIDEBAR ========
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  const ov = document.getElementById('overlay');
+  sb.classList.toggle('open');
+  ov.classList.toggle('show');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
+}
+
+// ======== YEAR BADGE HELPER ========
+function yearBadge(y) {
+  const map = { '1': 'year-badge-1', '2': 'year-badge-2', '3': 'year-badge-3', '4': 'year-badge-4' };
+  const label = { '1': '1st Year', '2': '2nd Year', '3': '3rd Year', '4': '4th Year' };
+  return `<span class="badge ${map[y] || 'bg-gray-100 text-gray-600'}">${label[y] || 'Year ' + y}</span>`;
+}
+
+// ======== DASHBOARD ========
+function updateDashboard() {
+  const students = getStudents();
+  const rooms = getRooms();
+  const depts = getDepts();
+  const reports = getReports();
+
+  document.getElementById('dashStudents').textContent = students.length;
+  document.getElementById('dashRooms').textContent = rooms.length;
+  document.getElementById('dashDepts').textContent = depts.length;
+  document.getElementById('dashReports').textContent = reports.length;
+
+  document.getElementById('studentBadge').textContent = students.length;
+  document.getElementById('roomBadge').textContent = rooms.length;
+  document.getElementById('deptBadge').textContent = depts.length;
+  document.getElementById('reportBadge').textContent = reports.length;
+
+  document.getElementById('dashStudentsBar').style.width = Math.min(100, students.length) + '%';
+  document.getElementById('dashRoomsBar').style.width = Math.min(100, rooms.length * 10) + '%';
+  document.getElementById('dashDeptsBar').style.width = Math.min(100, depts.length * 12) + '%';
+  document.getElementById('dashReportsBar').style.width = Math.min(100, reports.length * 10) + '%';
+
+  // Year chart
+  const yearCount = { '1': 0, '2': 0, '3': 0, '4': 0 };
+  students.forEach(s => { if (yearCount[s.year] !== undefined) yearCount[s.year]++; });
+  const total = students.length || 1;
+  const yearChart = document.getElementById('yearChart');
+  const yearColors = { '1': '#3b82f6', '2': '#10b981', '3': '#f59e0b', '4': '#ec4899' };
+  const yearLabels = { '1': '1st Year', '2': '2nd Year', '3': '3rd Year', '4': '4th Year' };
+
+  if (students.length === 0) {
+    yearChart.innerHTML = '<div class="text-center text-gray-400 text-sm py-8"><i class="fas fa-database text-3xl mb-3 opacity-30 block"></i> No student data available yet.<br>Import students to see distribution.</div>';
+  } else {
+    yearChart.innerHTML = Object.entries(yearCount).map(([yr, cnt]) => `
+      <div class="flex items-center gap-3">
+        <span class="text-xs font-medium text-gray-500 w-16">${yearLabels[yr]}</span>
+        <div class="flex-1 progress-bar">
+          <div class="progress-fill" style="width:${Math.round(cnt/total*100)}%;background:${yearColors[yr]}"></div>
+        </div>
+        <span class="text-xs font-semibold text-gray-700 w-8 text-right">${cnt}</span>
+        <span class="text-xs text-gray-400 w-8">${Math.round(cnt/total*100)}%</span>
+      </div>
+    `).join('');
+  }
+
+  // Recent reports
+  const recentDiv = document.getElementById('recentReports');
+  if (reports.length === 0) {
+    recentDiv.innerHTML = '<div class="text-center text-gray-400 text-sm py-6"><i class="fas fa-folder-open text-3xl mb-2 opacity-30 block"></i> No reports generated yet.</div>';
+  } else {
+    const recent = reports.slice(-5).reverse();
+    recentDiv.innerHTML = recent.map(r => `
+      <div class="flex items-center gap-3 py-2.5 border-b border-gray-50 last:border-0">
+        <div class="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+          <i class="fas fa-file-lines text-amber-600 text-sm"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-gray-800 truncate">${r.examName}</p>
+          <p class="text-xs text-gray-400">${r.date} · ${r.totalSeated} students</p>
+        </div>
+        <button onclick="viewReport('${r.id}')" class="text-xs text-primary-600 hover:underline flex-shrink-0">View</button>
+      </div>
+    `).join('');
+  }
+}
+
+// ======== STUDENT MANAGEMENT ========
+function handleCSV(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const text = e.target.result;
+    const lines = text.split('\n').filter(l => l.trim());
+    const start = lines[0].toLowerCase().includes('name') ? 1 : 0;
+    csvBuffer = [];
+    for (let i = start; i < lines.length; i++) {
+      const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+      if (cols.length >= 5 && cols[0]) {
+        csvBuffer.push({ id: Date.now() + i, name: cols[0], sin: cols[1], email: cols[2], year: cols[3], dept: cols[4] });
+      }
+    }
+    document.getElementById('csvPreview').classList.remove('hidden');
+    document.getElementById('csvPreviewText').textContent = `${csvBuffer.length} students ready to import`;
+  };
+  reader.readAsText(file);
+  document.getElementById('dropZone').classList.add('border-green-400', 'bg-green-50');
+}
+
+function importCSV() {
+  if (csvBuffer.length === 0) { showToast('No CSV data loaded. Please select a CSV file.', 'warning'); return; }
+  const existing = getStudents();
+  const merged = [...existing, ...csvBuffer];
+  saveStudents(merged);
+  csvBuffer = [];
+  document.getElementById('csvFile').value = '';
+  document.getElementById('csvPreview').classList.add('hidden');
+  document.getElementById('dropZone').classList.remove('border-green-400', 'bg-green-50');
+  renderStudents();
+  updateBadges();
+  showToast(`${csvBuffer.length || merged.length - existing.length} students imported successfully!`);
+}
+
+function addStudent() {
+  const name = document.getElementById('sName').value.trim();
+  const sin = document.getElementById('sSIN').value.trim();
+  const email = document.getElementById('sEmail').value.trim();
+  const year = document.getElementById('sYear').value;
+  const dept = document.getElementById('sDept').value;
+  if (!name || !sin || !year || !dept) { showToast('Please fill in Name, SIN, Year, and Department.', 'warning'); return; }
+  const students = getStudents();
+  if (students.find(s => s.sin === sin)) { showToast('A student with this SIN already exists.', 'error'); return; }
+  students.push({ id: Date.now(), name, sin, email, year, dept });
+  saveStudents(students);
+  document.getElementById('sName').value = '';
+  document.getElementById('sSIN').value = '';
+  document.getElementById('sEmail').value = '';
+  document.getElementById('sYear').value = '';
+  document.getElementById('sDept').value = '';
+  renderStudents();
+  updateBadges();
+  showToast('Student added successfully!');
+}
+
+function deleteStudent(id) {
+  if (!confirm('Delete this student?')) return;
+  saveStudents(getStudents().filter(s => s.id !== id));
+  renderStudents();
+  updateBadges();
+  showToast('Student deleted.', 'info');
+}
+
+function clearAllStudents() {
+  if (!confirm('Clear all student records?')) return;
+  saveStudents([]);
+  renderStudents();
+  updateBadges();
+  showToast('All students cleared.', 'info');
+}
+
+function renderStudents() {
+  const search = document.getElementById('studentSearch')?.value.toLowerCase() || '';
+  const yearFilter = document.getElementById('studentYearFilter')?.value || '';
+  let students = getStudents();
+  if (search) students = students.filter(s => s.name.toLowerCase().includes(search) || s.sin.toLowerCase().includes(search) || s.dept.toLowerCase().includes(search));
+  if (yearFilter) students = students.filter(s => s.year === yearFilter);
+
+  document.getElementById('studentCount').textContent = `(${students.length} of ${getStudents().length})`;
+
+  const totalPages = Math.ceil(students.length / PAGE_SIZE);
+  if (currentPage > totalPages) currentPage = 1;
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const page = students.slice(start, start + PAGE_SIZE);
+
+  const tbody = document.getElementById('studentsTable');
+  if (students.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="py-12 text-center text-gray-400 text-sm"><i class="fas fa-users text-4xl mb-3 opacity-20 block"></i>No students found.</td></tr>';
+    document.getElementById('studentPagination').classList.add('hidden');
+    return;
+  }
+
+  tbody.innerHTML = page.map((s, i) => `
+    <tr class="table-row border-b border-gray-50">
+      <td class="py-3 pr-4 text-xs text-gray-400">${start + i + 1}</td>
+      <td class="py-3 pr-4">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style="background:${stringColor(s.name)}">${s.name[0]?.toUpperCase()}</div>
+          <span class="text-sm font-medium text-gray-800 truncate max-w-[120px]">${s.name}</span>
+        </div>
+      </td>
+      <td class="py-3 pr-4 text-xs text-gray-600 font-mono">${s.sin}</td>
+      <td class="py-3 pr-4 text-xs text-gray-500 hidden md:table-cell max-w-[150px] truncate">${s.email || '—'}</td>
+      <td class="py-3 pr-4">${yearBadge(s.year)}</td>
+      <td class="py-3 pr-4"><span class="badge bg-gray-100 text-gray-600">${s.dept}</span></td>
+      <td class="py-3"><button onclick="deleteStudent(${s.id})" class="text-red-400 hover:text-red-600 transition text-sm"><i class="fas fa-trash"></i></button></td>
+    </tr>
+  `).join('');
+
+  // Pagination
+  const pg = document.getElementById('studentPagination');
+  pg.classList.remove('hidden');
+  document.getElementById('paginationInfo').textContent = `Showing ${start + 1}–${Math.min(start + PAGE_SIZE, students.length)} of ${students.length}`;
+  const btns = document.getElementById('paginationBtns');
+  btns.innerHTML = '';
+  for (let i = 1; i <= totalPages; i++) {
+    const b = document.createElement('button');
+    b.textContent = i;
+    b.className = `w-7 h-7 text-xs rounded-lg font-medium transition ${i === currentPage ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`;
+    b.onclick = () => { currentPage = i; renderStudents(); };
+    btns.appendChild(b);
+  }
+}
+
+function populateDeptDropdown() {
+  const sel = document.getElementById('sDept');
+  const depts = getDepts();
+  sel.innerHTML = '<option value="">Department</option>' + depts.map(d => `<option value="${d.code}">${d.code} — ${d.name}</option>`).join('');
+}
+
+// ======== ROOM MANAGEMENT ========
+function addRoom() {
+  const code = document.getElementById('roomCode').value.trim().toUpperCase();
+  const location = document.getElementById('roomLocation').value.trim();
+  const capacity = parseInt(document.getElementById('roomCapacity').value);
+  const block = document.getElementById('roomBlock').value.trim();
+  if (!code || !capacity || isNaN(capacity)) { showToast('Room code and capacity are required.', 'warning'); return; }
+  const rooms = getRooms();
+  if (rooms.find(r => r.code === code)) { showToast('A room with this code already exists.', 'error'); return; }
+  rooms.push({ id: Date.now(), code, location, capacity, block });
+  saveRooms(rooms);
+  document.getElementById('roomCode').value = '';
+  document.getElementById('roomLocation').value = '';
+  document.getElementById('roomCapacity').value = '';
+  document.getElementById('roomBlock').value = '';
+  renderRooms();
+  updateBadges();
+  showToast(`Room ${code} added successfully!`);
+}
+
+function deleteRoom(id) {
+  if (!confirm('Delete this room?')) return;
+  saveRooms(getRooms().filter(r => r.id !== id));
+  renderRooms();
+  updateBadges();
+  showToast('Room deleted.', 'info');
+}
+
+function clearAllRooms() {
+  saveRooms([]);
+  renderRooms();
+  updateBadges();
+  showToast('All rooms cleared.', 'info');
+}
+
+function renderRooms() {
+  const search = document.getElementById('roomSearch')?.value.toLowerCase() || '';
+  let rooms = getRooms();
+  if (search) rooms = rooms.filter(r => r.code.toLowerCase().includes(search) || r.location?.toLowerCase().includes(search));
+
+  document.getElementById('roomCount').textContent = `(${rooms.length})`;
+
+  const totalCap = getRooms().reduce((s, r) => s + r.capacity, 0);
+  document.getElementById('capacitySummary').innerHTML = `
+    <div class="flex justify-between text-xs mb-1"><span class="text-gray-500">Total Rooms</span><span class="font-medium">${getRooms().length}</span></div>
+    <div class="flex justify-between text-xs"><span class="text-gray-500">Total Capacity</span><span class="font-semibold text-emerald-600">${totalCap} seats</span></div>
+  `;
+
+  const grid = document.getElementById('roomsGrid');
+  if (rooms.length === 0) {
+    grid.innerHTML = '<div class="col-span-full text-center text-gray-400 py-12 text-sm"><i class="fas fa-door-open text-4xl mb-3 opacity-20 block"></i>No rooms found.</div>';
+    return;
+  }
+
+  grid.innerHTML = rooms.map(r => `
+    <div class="border border-gray-100 rounded-xl p-4 card-hover bg-gray-50/50">
+      <div class="flex items-start justify-between mb-3">
+        <div>
+          <span class="text-lg font-bold text-gray-800">${r.code}</span>
+          ${r.block ? `<span class="ml-2 badge bg-emerald-100 text-emerald-700">${r.block}</span>` : ''}
+        </div>
+        <button onclick="deleteRoom(${r.id})" class="text-red-400 hover:text-red-600 transition text-sm"><i class="fas fa-trash"></i></button>
+      </div>
+      ${r.location ? `<p class="text-xs text-gray-500 mb-3"><i class="fas fa-location-dot mr-1"></i>${r.location}</p>` : ''}
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+          <i class="fas fa-chair text-emerald-600 text-sm"></i>
+        </div>
+        <div>
+          <p class="text-sm font-semibold text-gray-800">${r.capacity}</p>
+          <p class="text-xs text-gray-400">Total Seats</p>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ======== DEPARTMENT MANAGEMENT ========
+function addDept() {
+  const code = document.getElementById('deptCode').value.trim().toUpperCase();
+  const name = document.getElementById('deptName').value.trim();
+  const strength = document.getElementById('deptStrength').value;
+  if (!code || !name) { showToast('Department code and name are required.', 'warning'); return; }
+  const depts = getDepts();
+  if (depts.find(d => d.code === code)) { showToast('Department already exists.', 'error'); return; }
+  depts.push({ id: Date.now(), code, name, strength: parseInt(strength) || 0 });
+  saveDepts(depts);
+  document.getElementById('deptCode').value = '';
+  document.getElementById('deptName').value = '';
+  document.getElementById('deptStrength').value = '';
+  renderDepts();
+  updateBadges();
+  showToast(`${code} department added!`);
+}
+
+function quickAddDept(code, name) {
+  const depts = getDepts();
+  if (depts.find(d => d.code === code)) { showToast(`${code} already exists.`, 'warning'); return; }
+  depts.push({ id: Date.now(), code, name, strength: 0 });
+  saveDepts(depts);
+  renderDepts();
+  updateBadges();
+  showToast(`${code} added!`);
+}
+
+function deleteDept(id) {
+  if (!confirm('Delete this department?')) return;
+  saveDepts(getDepts().filter(d => d.id !== id));
+  renderDepts();
+  updateBadges();
+  showToast('Department deleted.', 'info');
+}
+
+function renderDepts() {
+  const depts = getDepts();
+  document.getElementById('deptCount').textContent = `(${depts.length})`;
+
+  const grid = document.getElementById('deptsGrid');
+  if (depts.length === 0) {
+    grid.innerHTML = '<div class="col-span-full text-center text-gray-400 py-12 text-sm"><i class="fas fa-building-columns text-4xl mb-3 opacity-20 block"></i>No departments added yet.</div>';
+    return;
+  }
+
+  const colors = ['bg-blue-50 border-blue-200 text-blue-700', 'bg-green-50 border-green-200 text-green-700', 'bg-purple-50 border-purple-200 text-purple-700', 'bg-amber-50 border-amber-200 text-amber-700', 'bg-pink-50 border-pink-200 text-pink-700', 'bg-red-50 border-red-200 text-red-700', 'bg-indigo-50 border-indigo-200 text-indigo-700', 'bg-teal-50 border-teal-200 text-teal-700'];
+  const students = getStudents();
+
+  grid.innerHTML = depts.map((d, i) => {
+    const cnt = students.filter(s => s.dept === d.code).length;
+    const cc = colors[i % colors.length].split(' ');
+    return `
+      <div class="border ${cc[1]} rounded-xl p-4 card-hover ${cc[0]}">
+        <div class="flex items-start justify-between mb-2">
+          <span class="text-xl font-extrabold ${cc[2]}">${d.code}</span>
+          <button onclick="deleteDept(${d.id})" class="text-red-400 hover:text-red-600 transition text-sm"><i class="fas fa-trash"></i></button>
+        </div>
+        <p class="text-xs font-medium text-gray-600 mb-3">${d.name}</p>
+        <div class="flex items-center gap-4 text-xs">
+          <div><span class="font-bold text-gray-800">${cnt}</span> <span class="text-gray-500">students (imported)</span></div>
+          ${d.strength ? `<div><span class="font-bold text-gray-800">${d.strength}</span> <span class="text-gray-500">total</span></div>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ======== SEATING ALGORITHM ========
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function updateSeatingStatus() {
+  const students = getStudents();
+  const rooms = getRooms();
+  const history = getHistory();
+  const totalCap = rooms.reduce((s, r) => s + r.capacity, 0);
+  document.getElementById('statusStudents').textContent = students.length + ' records';
+  document.getElementById('statusStudents').className = students.length > 0 ? 'text-green-600 font-medium' : 'text-red-500 font-medium';
+  document.getElementById('statusRooms').textContent = rooms.length + ' rooms';
+  document.getElementById('statusRooms').className = rooms.length > 0 ? 'text-green-600 font-medium' : 'text-red-500 font-medium';
+  document.getElementById('statusCapacity').textContent = totalCap + ' seats';
+  document.getElementById('statusHistory').textContent = Object.keys(history).length;
+}
+
+function renderRoomCheckboxes() {
+  const rooms = getRooms();
+  const div = document.getElementById('roomCheckboxes');
+  if (rooms.length === 0) {
+    div.innerHTML = '<p class="text-xs text-gray-400 p-1">No rooms available. Add rooms first.</p>';
+    return;
+  }
+  div.innerHTML = rooms.map(r => `
+    <label class="flex items-center gap-2 text-xs py-1 cursor-pointer hover:bg-gray-50 rounded px-1">
+      <input type="checkbox" value="${r.id}" class="roomCheck" checked />
+      <span class="font-medium text-gray-700">${r.code}</span>
+      <span class="text-gray-400">${r.location || r.block || ''}</span>
+      <span class="ml-auto badge bg-emerald-100 text-emerald-700">${r.capacity} seats</span>
+    </label>
+  `).join('');
+}
+
+function generateSeating() {
+  const examName = document.getElementById('examName').value.trim();
+  const examDate = document.getElementById('examDate').value;
+  const examTime = document.getElementById('examTime').value;
+  if (!examName) { showToast('Please enter an exam name.', 'warning'); return; }
+  if (!examDate) { showToast('Please select an exam date.', 'warning'); return; }
+
+  const selectedRoomIds = [...document.querySelectorAll('.roomCheck:checked')].map(c => parseInt(c.value));
+  const selectedYears = [...document.querySelectorAll('.yearCheck:checked')].map(c => c.value);
+  const strategy = document.getElementById('mixStrategy').value;
+
+  if (selectedRoomIds.length === 0) { showToast('Please select at least one room.', 'warning'); return; }
+
+  let allStudents = getStudents().filter(s => selectedYears.includes(s.year));
+  if (allStudents.length === 0) { showToast('No students match the selected years. Import students first.', 'error'); return; }
+
+  const rooms = getRooms().filter(r => selectedRoomIds.includes(r.id));
+  const totalCapacity = rooms.reduce((s, r) => s + r.capacity, 0);
+  const history = getHistory();
+  const dateKey = examDate;
+
+  // Build previous seat assignment map: student -> set of seats used
+  const prevSeats = {};
+  allStudents.forEach(s => { prevSeats[s.sin] = new Set(); });
+  Object.values(history).forEach(report => {
+    report.rooms && report.rooms.forEach(rm => {
+      rm.seats && rm.seats.forEach(seat => {
+        if (seat.sin && prevSeats[seat.sin]) prevSeats[seat.sin].add(rm.code + '-' + seat.seatNo);
+      });
+    });
+  });
+
+  // Shuffle students based on strategy
+  let shuffled;
+  if (strategy === 'all_mixed') {
+    shuffled = shuffle(allStudents);
+  } else if (strategy === 'dept_mixed') {
+    const byDept = {};
+    allStudents.forEach(s => { if (!byDept[s.dept]) byDept[s.dept] = []; byDept[s.dept].push(s); });
+    const interleaved = [];
+    const deptArrays = Object.values(byDept).map(a => shuffle(a));
+    let idx = 0;
+    while (interleaved.length < allStudents.length) {
+      for (let d = 0; d < deptArrays.length; d++) {
+        if (idx < deptArrays[d].length) interleaved.push(deptArrays[d][idx]);
+      }
+      idx++;
+    }
+    shuffled = interleaved;
+  } else {
+    shuffled = shuffle(allStudents);
+  }
+
+  // Assign seats room by room, avoiding previous seats where possible
+  const arrangement = [];
+  let seatIdx = 0;
+
+  for (const room of rooms) {
+    const roomSeats = [];
+    const seatNos = Array.from({ length: room.capacity }, (_, i) => i + 1);
+    const roomPrefix = room.code + '-';
+
+    for (let sn = 0; sn < room.capacity && seatIdx < shuffled.length; seatIdx++) {
+      const student = shuffled[seatIdx];
+      const usedSeats = prevSeats[student.sin] || new Set();
+      // Find a seat not used before in this room
+      let assigned = null;
+      for (let attempt = 0; attempt < seatNos.length; attempt++) {
+        const candidateSeat = seatNos[sn];
+        if (!usedSeats.has(roomPrefix + candidateSeat)) {
+          assigned = candidateSeat;
+          break;
+        }
+        // Try to swap with another student later in the queue
+        let swapped = false;
+        for (let si = seatIdx + 1; si < Math.min(seatIdx + 20, shuffled.length); si++) {
+          const other = shuffled[si];
+          const otherUsed = prevSeats[other.sin] || new Set();
+          if (!otherUsed.has(roomPrefix + candidateSeat)) {
+            [shuffled[seatIdx], shuffled[si]] = [shuffled[si], shuffled[seatIdx]];
+            assigned = candidateSeat;
+            swapped = true;
+            break;
+          }
+        }
+        if (!swapped) assigned = candidateSeat; // fallback
+        break;
+      }
+      roomSeats.push({ seatNo: seatNos[sn], name: student.name, sin: student.sin, dept: student.dept, year: student.year, email: student.email });
+      sn++;
+    }
+    arrangement.push({ ...room, seats: roomSeats });
+  }
+
+  const totalSeated = arrangement.reduce((s, r) => s + r.seats.length, 0);
+  const reportData = { examName, examDate, examTime, rooms: arrangement, totalSeated, strategy, generatedAt: new Date().toLocaleString() };
+  currentReportData = reportData;
+
+  // Update history
+  history[dateKey + '-' + Date.now()] = reportData;
+  saveHistory(history);
+
+  renderPreview(reportData);
+  document.getElementById('previewActions').classList.remove('hidden');
+  updateSeatingStatus();
+  showToast(`Seating generated! ${totalSeated} students allocated across ${arrangement.length} rooms.`);
+}
+
+function renderPreview(data) {
+  const preview = document.getElementById('seatingPreview');
+
+  let html = `
+    <div class="mb-4 p-4 bg-gradient-to-r from-primary-50 to-blue-50 border border-primary-100 rounded-xl">
+      <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+        <div>
+          <h3 class="font-bold text-gray-800 text-base">${data.examName}</h3>
+          <p class="text-xs text-gray-500 mt-0.5">${data.examDate}${data.examTime ? ' · ' + data.examTime : ''} · Generated ${data.generatedAt}</p>
+        </div>
+        <div class="sm:ml-auto flex gap-3 text-xs">
+          <div class="text-center"><span class="block text-xl font-bold text-primary-600">${data.totalSeated}</span><span class="text-gray-500">Students</span></div>
+          <div class="text-center"><span class="block text-xl font-bold text-emerald-600">${data.rooms.length}</span><span class="text-gray-500">Rooms</span></div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  data.rooms.forEach(room => {
+    html += `
+      <div class="mb-4 border border-gray-100 rounded-xl overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-100">
+          <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center"><i class="fas fa-door-open text-emerald-600 text-xs"></i></div>
+            <span class="font-semibold text-gray-800 text-sm">${room.code}</span>
+            ${room.location ? `<span class="text-xs text-gray-400">${room.location}</span>` : ''}
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="badge bg-primary-100 text-primary-700">${room.seats.length} seated</span>
+            <span class="badge bg-gray-100 text-gray-500">${room.capacity} capacity</span>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead><tr class="bg-gray-25 border-b border-gray-100">
+              <th class="text-left text-gray-500 font-semibold px-4 py-2">Seat</th>
+              <th class="text-left text-gray-500 font-semibold px-4 py-2">Name</th>
+              <th class="text-left text-gray-500 font-semibold px-4 py-2">SIN No</th>
+              <th class="text-left text-gray-500 font-semibold px-4 py-2">Dept</th>
+              <th class="text-left text-gray-500 font-semibold px-4 py-2">Year</th>
+            </tr></thead>
+            <tbody>
+              ${room.seats.map(s => `
+                <tr class="table-row border-b border-gray-50 last:border-0">
+                  <td class="px-4 py-2 font-bold text-primary-600">${s.seatNo}</td>
+                  <td class="px-4 py-2 font-medium text-gray-700">${s.name}</td>
+                  <td class="px-4 py-2 font-mono text-gray-500">${s.sin}</td>
+                  <td class="px-4 py-2"><span class="badge bg-gray-100 text-gray-600">${s.dept}</span></td>
+                  <td class="px-4 py-2">${yearBadge(s.year)}</td>
+                </tr>
+              `).join('')}
+              ${room.seats.length < room.capacity ? `<tr><td colspan="5" class="px-4 py-2 text-gray-400 text-center italic">${room.capacity - room.seats.length} seat(s) vacant</td></tr>` : ''}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  });
+
+  preview.innerHTML = html;
+}
+
+// ======== SAVE REPORT ========
+function saveReport() {
+  if (!currentReportData) { showToast('No seating data to save.', 'warning'); return; }
+  const reports = getReports();
+  const id = 'rpt-' + Date.now();
+  reports.push({ id, ...currentReportData, date: currentReportData.examDate });
+  saveReports(reports);
+  updateBadges();
+  showToast('Report saved successfully!');
+}
+
+// ======== REPORTS PAGE ========
+function renderReports() {
+  const search = document.getElementById('reportSearch')?.value.toLowerCase() || '';
+  let reports = getReports();
+  if (search) reports = reports.filter(r => r.examName.toLowerCase().includes(search) || r.examDate.includes(search));
+  reports = reports.reverse();
+
+  document.getElementById('reportsCount').textContent = `(${reports.length})`;
+
+  const div = document.getElementById('reportsTable');
+  if (reports.length === 0) {
+    div.innerHTML = '<div class="text-center py-12 text-gray-400 text-sm"><i class="fas fa-folder-open text-4xl mb-3 opacity-20 block"></i>No reports saved yet.</div>';
+    return;
+  }
+
+  div.innerHTML = `
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-gray-100">
+            <th class="text-left text-xs font-semibold text-gray-500 pb-3 pr-4">#</th>
+            <th class="text-left text-xs font-semibold text-gray-500 pb-3 pr-4">Exam Name</th>
+            <th class="text-left text-xs font-semibold text-gray-500 pb-3 pr-4">Date</th>
+            <th class="text-left text-xs font-semibold text-gray-500 pb-3 pr-4 hidden md:table-cell">Rooms</th>
+            <th class="text-left text-xs font-semibold text-gray-500 pb-3 pr-4">Students</th>
+            <th class="text-left text-xs font-semibold text-gray-500 pb-3 pr-4 hidden lg:table-cell">Generated</th>
+            <th class="text-left text-xs font-semibold text-gray-500 pb-3">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${reports.map((r, i) => `
+            <tr class="table-row border-b border-gray-50">
+              <td class="py-3 pr-4 text-xs text-gray-400">${i + 1}</td>
+              <td class="py-3 pr-4"><span class="font-medium text-gray-800 text-sm">${r.examName}</span></td>
+              <td class="py-3 pr-4 text-xs text-gray-500">${r.examDate}${r.examTime ? ' · ' + r.examTime : ''}</td>
+              <td class="py-3 pr-4 text-xs text-gray-500 hidden md:table-cell">${r.rooms?.length || 0} halls</td>
+              <td class="py-3 pr-4"><span class="badge bg-primary-100 text-primary-700">${r.totalSeated}</span></td>
+              <td class="py-3 pr-4 text-xs text-gray-400 hidden lg:table-cell">${r.generatedAt || '—'}</td>
+              <td class="py-3">
+                <div class="flex items-center gap-2">
+                  <button onclick="viewReport('${r.id}')" class="text-xs text-primary-600 hover:text-primary-800 font-medium transition"><i class="fas fa-eye mr-1"></i>View</button>
+                  <button onclick="downloadPDFById('${r.id}')" class="text-xs text-emerald-600 hover:text-emerald-800 font-medium transition"><i class="fas fa-file-pdf mr-1"></i>PDF</button>
+                  <button onclick="deleteReport('${r.id}')" class="text-xs text-red-400 hover:text-red-600 transition"><i class="fas fa-trash"></i></button>
+                </div>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function viewReport(id) {
+  const reports = getReports();
+  const report = reports.find(r => r.id === id);
+  if (!report) return;
+  currentReportData = report;
+  document.getElementById('modalReportTitle').textContent = report.examName + ' — ' + report.examDate;
+  let html = `<div class="mb-3 p-3 bg-primary-50 rounded-lg text-xs text-gray-600">
+    <strong>${report.examName}</strong> · ${report.examDate}${report.examTime ? ' · ' + report.examTime : ''} · ${report.totalSeated} students across ${report.rooms?.length || 0} rooms
+  </div>`;
+  report.rooms?.forEach(room => {
+    html += `<div class="mb-4 border border-gray-100 rounded-xl overflow-hidden">
+      <div class="px-4 py-2 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+        <span class="font-semibold text-gray-800 text-sm">${room.code} ${room.location ? '— ' + room.location : ''}</span>
+        <span class="badge bg-primary-100 text-primary-700">${room.seats.length} seated</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs">
+          <thead><tr class="border-b border-gray-100">
+            <th class="text-left text-gray-500 font-semibold px-3 py-2">Seat</th>
+            <th class="text-left text-gray-500 font-semibold px-3 py-2">Name</th>
+            <th class="text-left text-gray-500 font-semibold px-3 py-2">SIN No</th>
+            <th class="text-left text-gray-500 font-semibold px-3 py-2">Dept</th>
+            <th class="text-left text-gray-500 font-semibold px-3 py-2">Year</th>
+          </tr></thead>
+          <tbody>
+            ${room.seats.map(s => `<tr class="border-b border-gray-50 last:border-0">
+              <td class="px-3 py-2 font-bold text-primary-600">${s.seatNo}</td>
+              <td class="px-3 py-2 font-medium">${s.name}</td>
+              <td class="px-3 py-2 font-mono text-gray-500">${s.sin}</td>
+              <td class="px-3 py-2"><span class="badge bg-gray-100 text-gray-600">${s.dept}</span></td>
+              <td class="px-3 py-2">${yearBadge(s.year)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+  });
+  document.getElementById('modalReportContent').innerHTML = html;
+  openModal('reportModal');
+}
+
+function deleteReport(id) {
+  if (!confirm('Delete this report?')) return;
+  saveReports(getReports().filter(r => r.id !== id));
+  renderReports();
+  updateBadges();
+  showToast('Report deleted.', 'info');
+}
+
+function clearAllReports() {
+  if (!confirm('Clear all reports?')) return;
+  saveReports([]);
+  saveHistory({});
+  renderReports();
+  updateBadges();
+  showToast('All reports cleared.', 'info');
+}
+
+// ======== PDF GENERATION ========
+function buildPDF(data) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const college = getCollege();
+  const pw = doc.internal.pageSize.getWidth();
+
+  let y = 0;
+
+  function addPageHeader() {
+    // Header Bar
+    doc.setFillColor(30, 64, 175);
+    doc.rect(0, 0, pw, 28, 'F');
+
+    if (college.name) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.setTextColor(255, 255, 255);
+      doc.text(college.name.toUpperCase(), pw / 2, 10, { align: 'center' });
+      if (college.address) {
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.text(college.address, pw / 2, 15, { align: 'center' });
+      }
+    }
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(255, 255, 255);
+    doc.text('EXAM SEATING ARRANGEMENT', pw / 2, college.name ? 22 : 14, { align: 'center' });
+    y = 34;
+  }
+
+  addPageHeader();
+
+  // Exam Info Box
+  doc.setFillColor(239, 246, 255);
+  doc.setDrawColor(191, 219, 254);
+  doc.roundedRect(10, y, pw - 20, 22, 3, 3, 'FD');
+
+  doc.setTextColor(30, 64, 175);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.text(data.examName, pw / 2, y + 7, { align: 'center' });
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(71, 85, 105);
+  doc.text(`Date: ${data.examDate}`, 20, y + 14);
+  if (data.examTime) doc.text(`Time: ${data.examTime}`, 80, y + 14);
+  doc.text(`Total Students: ${data.totalSeated}`, pw - 60, y + 14);
+  doc.text(`Halls Used: ${data.rooms.length}`, pw - 20, y + 14, { align: 'right' });
+  y += 28;
+
+  data.rooms.forEach((room, ri) => {
+    if (y > 250) { doc.addPage(); addPageHeader(); }
+
+    // Room Header
+    doc.setFillColor(15, 23, 42);
+    doc.roundedRect(10, y, pw - 20, 10, 2, 2, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(255, 255, 255);
+    doc.text(`Hall: ${room.code}${room.location ? ' — ' + room.location : ''}`, 15, y + 7);
+    doc.text(`Capacity: ${room.capacity} | Occupied: ${room.seats.length}`, pw - 15, y + 7, { align: 'right' });
+    y += 13;
+
+    // Table
+    const tableBody = room.seats.map(s => [s.seatNo, s.name, s.sin, s.dept, `${s.year}${s.year==='1'?'st':s.year==='2'?'nd':s.year==='3'?'rd':'th'} Year`]);
+
+    doc.autoTable({
+      startY: y,
+      head: [['Seat No.', 'Student Name', 'SIN Number', 'Department', 'Year']],
+      body: tableBody,
+      margin: { left: 10, right: 10 },
+      headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+      bodyStyles: { fontSize: 8, textColor: [30, 41, 59] },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      columnStyles: { 0: { halign: 'center', fontStyle: 'bold', cellWidth: 18 }, 1: { cellWidth: 55 }, 2: { cellWidth: 28, fontStyle: 'italic' }, 3: { cellWidth: 28 }, 4: { cellWidth: 28 } },
+      didDrawPage: (d) => { if (d.pageNumber > 1) { addPageHeader(); } },
+    });
+
+    y = doc.lastAutoTable.finalY + 8;
+  });
+
+  // Footer
+  const totalPages = doc.internal.getNumberOfPages();
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+    doc.setFillColor(243, 244, 246);
+    doc.rect(0, 285, pw, 12, 'F');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(107, 114, 128);
+    doc.text(`Generated by ExamSeat Pro | ${data.generatedAt}`, 10, 292);
+    doc.text(`Page ${p} of ${totalPages}`, pw - 10, 292, { align: 'right' });
+  }
+
+  return doc;
+}
+
+function downloadPDF() {
+  if (!currentReportData) { showToast('No seating data available.', 'warning'); return; }
+  const doc = buildPDF(currentReportData);
+  doc.save(`Seating_${currentReportData.examName.replace(/\s+/g, '_')}_${currentReportData.examDate}.pdf`);
+  showToast('PDF downloaded!');
+}
+
+function downloadPDFFromModal() {
+  if (!currentReportData) return;
+  downloadPDF();
+}
+
+function downloadPDFById(id) {
+  const report = getReports().find(r => r.id === id);
+  if (!report) { showToast('Report not found.', 'error'); return; }
+  const prev = currentReportData;
+  currentReportData = report;
+  downloadPDF();
+  currentReportData = prev;
+}
+
+// ======== SETTINGS ========
+function updateCredentials() {
+  const newUsername = document.getElementById('newUsername').value.trim();
+  const currentPass = document.getElementById('currentPass').value;
+  const newPass = document.getElementById('newPass').value;
+  const confirmPass = document.getElementById('confirmPass').value;
+  const creds = getAdminCreds();
+  if (!newUsername) { showToast('Username cannot be empty.', 'warning'); return; }
+  if (currentPass !== creds.pass) { showToast('Current password is incorrect.', 'error'); return; }
+  if (newPass && newPass !== confirmPass) { showToast('New passwords do not match.', 'error'); return; }
+  saveAdminCreds({ user: newUsername, pass: newPass || creds.pass });
+  document.getElementById('currentPass').value = '';
+  document.getElementById('newPass').value = '';
+  document.getElementById('confirmPass').value = '';
+  showToast('Credentials updated!');
+}
+
+function saveCollegeInfo() {
+  const name = document.getElementById('collegeName').value.trim();
+  const code = document.getElementById('collegeCode').value.trim();
+  const address = document.getElementById('collegeAddress').value.trim();
+  saveCollege({ name, code, address });
+  showToast('College info saved!');
+}
+
+function loadSettings() {
+  const creds = getAdminCreds();
+  document.getElementById('newUsername').value = creds.user;
+  const college = getCollege();
+  document.getElementById('collegeName').value = college.name;
+  document.getElementById('collegeCode').value = college.code;
+  document.getElementById('collegeAddress').value = college.address;
+}
+
+function resetAll() {
+  localStorage.clear();
+  window.location.reload();
+}
+
+// ======== SEARCH ========
+function globalSearchFn(q) {
+  if (!q.trim()) return;
+  navigate('students');
+  document.getElementById('studentSearch').value = q;
+  renderStudents();
+}
+
+// ======== MODAL ========
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal').forEach(m => {
+  m.addEventListener('click', function(e) { if (e.target === this) closeModal(this.id); });
+});
+
+// ======== UTILITIES ========
+function updateBadges() {
+  document.getElementById('studentBadge').textContent = getStudents().length;
+  document.getElementById('roomBadge').textContent = getRooms().length;
+  document.getElementById('deptBadge').textContent = getDepts().length;
+  document.getElementById('reportBadge').textContent = getReports().length;
+  document.getElementById('reportsCount') && (document.getElementById('reportsCount').textContent = `(${getReports().length})`);
+}
+
+function refreshAll() {
+  updateBadges();
+  updateDashboard();
+}
+
+function stringColor(str) {
+  const colors = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899','#f97316'];
+  let h = 0;
+  for (let i = 0; i < (str||'').length; i++) h = str.charCodeAt(i) + ((h << 5) - h);
+  return colors[Math.abs(h) % colors.length];
+}
+
+// Drop zone click handler
+document.getElementById('dropZone').addEventListener('click', () => document.getElementById('csvFile').click());
+document.getElementById('dropZone').addEventListener('dragover', e => { e.preventDefault(); document.getElementById('dropZone').classList.add('bg-primary-50'); });
+document.getElementById('dropZone').addEventListener('drop', e => {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (file && file.name.endsWith('.csv')) {
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    document.getElementById('csvFile').files = dt.files;
+    handleCSV({ target: { files: [file] } });
+  }
+});
+
+// ESC key close modals
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.querySelectorAll('.modal.open').forEach(m => m.classList.remove('open'));
+});
+
+// ======== INIT ========
+document.addEventListener('DOMContentLoaded', () => {
+  refreshAll();
+  // Set today's date as default
+  const today = new Date().toISOString().split('T')[0];
+  const examDateInput = document.getElementById('examDate');
+  if (examDateInput) examDateInput.value = today;
+});
+</script>
+
+
+</body>
+</html>
